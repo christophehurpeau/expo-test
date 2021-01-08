@@ -1,5 +1,5 @@
 {
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "./main.js",
   "types": "./dist-js/index.d.ts",
   "license": "UNLICENSED",
   "scripts": {
@@ -16,6 +16,7 @@
     "@react-navigation/native": "^5.7.0",
     "@react-navigation/stack": "^5.7.0",
     "expo": "~38.0.8",
+    "expo-keep-awake": "~8.2.1",
     "expo-status-bar": "^1.0.2",
     "react": "~16.11.0",
     "react-dom": "~16.11.0",
@@ -34,7 +35,9 @@
     "@types/react-dom": "^16.9.8",
     "@types/react-native": "^0.63.1",
     "@types/react-test-renderer": "^16.9.2",
-    "typescript": "^3.9.6"
+    "expo-cli": "^4.0.17",
+    "typescript": "^3.9.6",
+    "yarn-deduplicate": "^3.1.0"
   },
   "private": true
 }
