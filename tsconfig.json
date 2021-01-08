@@ -6,14 +6,12 @@
     "lib": ["dom", "esnext"],
     "module": "CommonJS",
     "moduleResolution": "node",
-    "noEmit": false,
+    "noEmit": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "strict": true,
-    "outDir": "./dist-js"
+    "strict": true
   },
   "exclude": [
-      "node_modules",
-      "./dist-js"
+      "node_modules"
   ]
 }
