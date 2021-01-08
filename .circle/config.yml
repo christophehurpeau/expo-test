@@ -1,0 +1,178 @@
+version: 2
+
+jobs:
+  test:
+    docker:
+      - image: circleci/ruby:2.5-node
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - dependencies-{{ arch }}-{{ checksum "yarn.lock" }}-{{ checksum "Gemfile.lock" }}
+            - dependencies-{{ arch }}
+      - run:
+          name: Install dependencies
+          command: yarn --prefer-offline --pure-lockfile
+      - save_cache:
+          key: dependencies-{{ arch }}-{{ checksum "yarn.lock" }}-{{ checksum "Gemfile.lock" }}
+          paths:
+            - node_modules
+            - vendor/bundle
+      - run:
+          name: Lint code
+          command: yarn run lint
+      - run:
+          name: Run tests
+          command: yarn run test
+
+  publish:
+    docker:
+      - image: circleci/ruby:2.5-node
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - dependencies-{{ arch }}-{{ checksum "yarn.lock" }}-{{ checksum "Gemfile.lock" }}
+      - run:
+          name: Publish
+          command: |
+            if [ -n "$CIRCLE_TAG" ]; then
+              channel=`echo "release-$CIRCLE_TAG" | sed -e 's/\..*$//'`
+              channelsuffix=`echo "$CIRCLE_TAG" | sed -e 's/^.*-//'`
+              if [ "$channelsuffix" -ne "$channel" ]; then
+                channel="$channel$channelsuffix"
+              else
+                channelsuffix=""
+              fi
+            elif [ -n "$CIRCLE_PULL_REQUEST" ]; then
+              # Needs: EXP_USERNAME, EXP_PASSWORD, GITHUB_USERNAME, GITHUB_TOKEN
+              channel=`echo $CIRCLE_BRANCH | sed -e 's/\//-/' | sed -e 's/-ONK-[0-9]*//'`
+            elif [ "$CIRCLE_BRANCH" = "master" ]; then
+              channel='master'
+            fi
+
+            if [ -n "$channel" ]; then
+              # Apply config
+              if [ -n "$CIRCLE_TAG" ]; then
+                node scripts/app-apply-overrides.js "$channelsuffix" || exit 1
+              else
+                node scripts/modify-privacy.js
+              fi
+
+              # Login
+              npx exp login -u $EXP_USERNAME -p $EXP_PASSWORD --non-interactive
+
+              # Publish app
+              npx exp publish --clear --max-workers 2 --release-channel "$channel" --non-interactive --quiet
+
+              # Publish storybook, in `${channel}-storybook`
+              if [ -z "$CIRCLE_TAG" ]; then
+                node scripts/modify-main-storybook.js
+                npx exp publish --clear --max-workers 2 --release-channel "$channel-storybook" --non-interactive --quiet
+              fi
+
+              # Comment PR
+              if [ -n "$CIRCLE_PULL_REQUEST" ]; then
+                EXP_CHANNEL="$channel" node scripts/pr-comment.js
+              fi
+            fi
+
+
+
+  publish-to-stores:
+    docker:
+      - image: circleci/ruby:2.5-node
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - dependencies-{{ arch }}-{{ checksum "yarn.lock" }}-{{ checksum "Gemfile.lock" }}
+      - run:
+          name: Publish
+          command: |
+            # Needs: EXPO_USERNAME, EXPO_PASSWORD, FASTLANE_ITC_TEAM_ID,
+            if [ -n "$CIRCLE_TAG" ]; then
+              channel=production
+            elif [ "$CIRCLE_BRANCH" = "master" ]; then
+              channel=master
+            elif [ -n "$CIRCLE_PULL_REQUEST" ]; then
+              node scripts/modify-privacy.js
+              channel=`echo $CIRCLE_BRANCH | sed -e 's/\//-/'`
+            fi
+
+            if [[ $CIRCLE_TAG == v*.0.0-* ]] || [[ $CIRCLE_TAG == v0.*.0-* ]]; then
+              track=internal
+            elif [[ $CIRCLE_TAG == v*.0.0 ]] || [[ $CIRCLE_TAG == v0.*.0 ]]; then
+              track=production
+            fi
+
+            if [ -n "$channel" ]; then
+              npx exp login -u $EXPO_USERNAME -p $EXPO_PASSWORD --non-interactive
+              if [ -n "$track" ]; then
+                # https://blog.expo.io/automating-standalone-expo-app-builds-and-deployments-with-fastlane-exp-and-exptool-9b2f5ad0a2cd
+
+                # ANDROID
+
+                # Start building standalone android build using `$channel` release channel
+                echo "Build Android APK"
+                npx exp build:android --release-channel $channel --non-interactive --no-publish
+
+                # Download the artifact to current directory as `app.apk`
+                echo "Download the artifact"
+                curl -o app.apk "$(npx exp url:apk --non-interactive)"
+
+                # Use fastlane to upload your current standalone android build
+                # track=production, beta, alpha, internal, rollout
+                echo "Upload to play store"
+                bundle exec fastlane supply --track "$track"  --json_key './config/android_json_key.json' --package_name "com.hurpeau.christest1" --apk "app.apk" --skip_upload_images --skip_upload_screenshots
+
+                # clean
+                echo "Clean apk"
+                rm app.apk
+
+                # IOS
+
+                # Start building standalone android build using `$channel` release channel
+                echo "Build iOS IPA"
+                npx exp build:ios --release-channel $channel --non-interactive --no-publish
+
+                # Download the artifact to current directory as `app.ipa`
+                echo "Download the artifact"
+                curl -o app.ipa "$(npx exp url:ipa --non-interactive)"
+
+                # Use fastlane to upload your current standalone iOS build to itunes connect
+                #echo "Upload to itunes connect"
+                #bundle exec fastlane deliver --verbose --ipa "app.ipa" --skip_screenshots
+
+                # clean
+                echo "Clean ipa"
+                rm app.ipa
+              else
+                npx exp publish --max-workers 1 --release-channel $channel --non-interactive --quiet
+
+                if [ -n "$CIRCLE_PULL_REQUEST" ]; then
+                  EXPO_CHANNEL="$channel" node scripts/pr-comment.js
+                fi
+              fi
+            fi
+
+
+workflows:
+  version: 2
+
+  main-workflow:
+    jobs:
+      - test:
+          filters:
+            tags:
+              only: /^v.*/
+
+      - publish:
+          context: expo
+          requires:
+            - test
+          filters:
+            tags:
+              only: /^v.*/
+
+

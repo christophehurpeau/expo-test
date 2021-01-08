@@ -14,10 +14,14 @@
       "fallbackToCacheTimeout": 0
     },
     "assetBundlePatterns": [
-      "**/*"
+      "assets/*"
     ],
     "ios": {
+      "bundleIdentifier": "com.hurpeau.christest1",
       "supportsTablet": true
+    },
+    "android": {
+      "package": "com.hurpeau.christest1"
     },
     "web": {
       "favicon": "./assets/favicon.png"

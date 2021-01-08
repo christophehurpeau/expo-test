@@ -1,0 +1,4 @@
+# Customise this file, documentation can be found here:
+# https://docs.fastlane.tools/
+
+fastlane_version "1.30.0"
