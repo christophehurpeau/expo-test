@@ -1,5 +1,5 @@
-import { MyView } from './MyView';
-import { Person } from './Person';
+import { MyView } from './src/MyView';
+import { Person } from './src/Person';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { View, Text } from 'react-native';
