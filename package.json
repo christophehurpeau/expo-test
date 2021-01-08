@@ -1,8 +1,7 @@
 {
   "main": "node_modules/expo/AppEntry.js",
   "types": "./dist-js/index.d.ts",
-  "author": "Zebra Technologies",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
