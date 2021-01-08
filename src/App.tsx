@@ -1,13 +1,12 @@
-import React from 'react';
-import { MyView } from './MyView';
-import { Person } from './Person';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import type { ReactElement } from 'react';
+import React from 'react';
 import { View, Text } from 'react-native';
 
 const Stack = createStackNavigator();
 
-function HomeScreen() {
+function HomeScreen(): ReactElement {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <Text>Home Screen</Text>
@@ -15,7 +14,7 @@ function HomeScreen() {
     );
   }
 
-export default function App() {
+export default function App(): ReactElement {
     return (
         <NavigationContainer>
           <Stack.Navigator>
